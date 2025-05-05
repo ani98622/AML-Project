@@ -1,26 +1,20 @@
 from dotenv import load_dotenv
-import streamlit as st
-import os
+import streamlit as st, os, tempfile
 from google import genai
 import pdfplumber
 import fitz  # PyMuPDF
 from io import BytesIO
-import tempfile
 from docx import Document
-import re
-import all_functions as func
-import shutil
-import time
+import re,all_functions as func, shutil, time
 from zipfile import ZipFile
 from google.api_core.exceptions import InvalidArgument
 
 
+load_dotenv()
 
 # Set page configuration
 st.set_page_config(page_title="Resume Standardization System")
 st.header("Resume Standardization System")
-
-
 
 
 # Streamlit input for API key
@@ -29,7 +23,13 @@ api_key = st.text_input('Enter your Gemini API key', type="password")
 # Updated Gemini image processing
 from google.generativeai import GenerativeModel, configure
 from PIL import Image
-client = genai.Client(api_key="AIzaSyC1RwIsPWiaYLbaXznME8bapQ3t_lQYpkE")
+if api_key:
+    client = genai.Client(api_key=api_key)
+else:
+    api_key = os.getenv('GEMINI_API_KEY')
+# else:
+#     st.warning("Please enter your Gemini API key to use the image processing feature.")
+#     client = None
 
 
 def image_processing_genai(uploaded_file):
@@ -39,7 +39,6 @@ def image_processing_genai(uploaded_file):
         # prompt = """You are a resume analyzer. Extract A to Z details from the resume image and format them as text. 
         # Return a summary that includes personal info, skills, education, experience, certifications, and any relevant projects."""
 
-        
         response = client.models.generate_content(
             model = "gemini-2.0-flash",
             contents=[image, """You are a resume analyzer. Extract A to Z details from the resume image and format them as text. 
@@ -51,10 +50,6 @@ def image_processing_genai(uploaded_file):
     except Exception as e:
         st.error(f"Error processing image with Gemini: {e}")
         return ""
-
-
-
-
     
 # File upload function
 def file_upload():
@@ -95,8 +90,6 @@ def process_resume(uploaded_files, filename):
         certifications = func.get_certifications_response(resume_text)
         # Get technical skills response
         technical_skills = func.get_technical_skills_response2(resume_text)
-
-        
         
         # Fill in the Word document template for all sections
         template_path = 'Templates/agilisium_template.docx'
@@ -122,16 +115,11 @@ def process_resume(uploaded_files, filename):
         func.func.process_docx11(output_path)
         func.delete_rows_with_any_empty_cells(output_path)
         st.success(f"{filename}-document processed successfully.")
-        
-        
-
 
     except FileNotFoundError as e:
         st.error(str(e))
 
    
-
-
 def process_resume_2(uploaded_files, filename):
     try:
         if uploaded_files.type == "application/pdf":
@@ -173,9 +161,6 @@ def process_resume_2(uploaded_files, filename):
     except FileNotFoundError as e:
         st.error(str(e))
         
-
-
-
         
 def process_resume_3(uploaded_files,filename):
     temp_pdf_path = None
@@ -234,7 +219,8 @@ def process_resume_3(uploaded_files,filename):
         st.success(f"{filename}-document processed successfully.")
         
     except FileNotFoundError as e:
-        st.error(str(e))      
+        st.error(str(e))   
+
 # Function to process and save DOCX file
 def process_and_save(uploaded_files, process_func, folder_path):
     if uploaded_files:
@@ -261,7 +247,6 @@ def client_template_button(uploaded_files):
 def client_template_with_photo_button(uploaded_files):
     process_and_save(uploaded_files, process_resume_3, "agilisium_resume_client_format_2")
     
-
 
 # File upload
 uploaded_files = file_upload()  # Implement file_upload to handle file upload
