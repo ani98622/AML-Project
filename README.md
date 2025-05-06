@@ -2,22 +2,21 @@
 
 Transform unstructured resumes into clean, company-standardized formats using the power of GenAI and intelligent document parsing.
 
-🔗 **Try the App Live**: [resume-builder-aml-project.streamlit.app](https://resume-builder-aml-project.streamlit.app/)
+🔗 **Try the App Live**: [Resume Builder app](https://resume-builder-aml-project.streamlit.app/)
 
 ---
 
 ## 🚀 About the Project
 
-Recruiters are swamped with resumes in inconsistent formats—PDFs, DOCXs, images—all structured differently. This makes fair and efficient candidate evaluation a major bottleneck in hiring.
+Companies often receive resumes in various formats—PDFs, DOCXs, and images—each with different structures and styles. After hiring, organizations frequently need to convert these diverse resumes into a **uniform company-specific CV format** for internal documentation, onboarding, and record-keeping.
 
-**Resume Standardizer** solves this by:
-- Automatically extracting key candidate details (like education, skills, and work experience),
-- Understanding context from semi-structured content,
-- Populating a clean, consistent CV template defined by the hiring organization.
+**Resume Standardizer** is designed specifically to solve this problem. It enables companies to:
 
-This project is part of an Applied Machine Learning course under the mentorship of **Prof. Raghav Kulkarni**.
+- Upload resumes in any format (PDF, DOCX, or image),
+- Automatically extract key candidate details such as education, experience, and skills,
+- Generate a clean, structured CV tailored to the company’s preferred template.
 
----
+This project was developed as part of the **Applied Machine Learning course** (by **Prof. Raghav Kulkarni**), with a focus on solving real-world HR documentation challenges using GenAI.
 
 ## 🛠️ Features
 
