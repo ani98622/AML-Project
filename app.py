@@ -93,7 +93,7 @@ def process_resume(uploaded_file, filename):
         skills = func.get_technical_skills_response2(resume_text)
         work_experience = func.get_work_experience_response(resume_text)
 
-        template_path = 'Templates/agilisium_template.docx'
+        template_path = 'Templates/Kasukabe_template.docx'
         output_path = f'agilisium_resume_internal_template/{filename}_resume.docx'
 
         func.fill_invitation(template_path, output_path, name, summary, certifications)
