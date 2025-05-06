@@ -56,7 +56,6 @@ def remove_pdf_and_docx_files_in_script_directory():
                 pass
 
 
-
 def convert_to_pdf_if_docx(file_path):
     """
     Converts a .docx file to .pdf if the file is a .docx, 
@@ -105,7 +104,6 @@ def delete_directories(directories):
         if os.path.exists(directory):
             shutil.rmtree(directory)
 
-
 # Function to zip a folder and return the zipped content as a BytesIO object
 def zip_folder_to_bytesio(folder_path):
     bytes_io = BytesIO()
@@ -118,7 +116,6 @@ def zip_folder_to_bytesio(folder_path):
     bytes_io.seek(0)  # Rewind the BytesIO object for reading
     return bytes_io
 
-
 def input_imagedata(uploaded_file):
     if uploaded_file is not None:
         # Convert the uploaded file to an image
@@ -129,8 +126,7 @@ def input_imagedata(uploaded_file):
 
 from PIL import Image
 from google import genai
-
-        
+    
 def get_gemini_response_image(input, image, query=None):
     if query is not None:
         response = client.models.generate_content(model="gemini-2.0-flash",contents=[input, image, query])
@@ -159,7 +155,6 @@ def replace_symbol_with_dash(doc_name):
             para.text = para.text.replace("&",'-')
     return document
 
-
 # Function to extract text from PDF using PyMuPDF
 def extract_text_from_pdf(uploaded_file):
     resume_text = ''
@@ -174,7 +169,6 @@ def extract_text_from_pdf(uploaded_file):
     
     os.unlink(temp_filename)  # Delete the temporary file
     return resume_text
-
 
 # Function to get response from text-based model for name query
 def get_name_response(input_text):
@@ -192,7 +186,6 @@ def get_name_response(input_text):
         st.error("API Key is invalid. Please pass a valid API key.")
         st.stop()
 
-
 # Function to get response from text-based model for summary query
 def get_summary_response(input_text):
     input_prompt = """
@@ -204,7 +197,6 @@ def get_summary_response(input_text):
     query = input_prompt + summary_query
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,query])
     return response.text
-
 
 # Function to get response from text-based model for certifications query
 def get_certifications_response(input_text):
@@ -228,7 +220,6 @@ If there are no certificates, then print None.
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,query])
     return response.text
 
-
 # Function to get response from text-based model for degree details query
 def get_degree_details_response(input_text):
     input_prompt = """
@@ -240,7 +231,6 @@ def get_degree_details_response(input_text):
     query = input_prompt + degree_query
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,query])
     return response.text
-
 
 # Function to get response from text-based model for education details query
 def get_education_details_response(input_text):
@@ -286,7 +276,6 @@ Retrieve a list of all technical skills mentioned in the resume. Format the list
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,query1])
     return str(response.text)
 
-
 # Function to extract text from DOCX
 def extract_text_from_docx(uploaded_file):
     resume_text = ''
@@ -325,7 +314,6 @@ def fill_invitation(template_path, output_path, name, summary, certifications):
 
     doc.save(output_path)
 
-
 def fill_invitation2(template_path, output_path, summary, skills, project_experience,certifications1,summar):
     data = {
         '[summary_2]': summary,
@@ -359,10 +347,7 @@ def fill_invitation3(template_path, output_path, name, summary):
                     run.text = run.text.replace(key, value)
 
     doc.save(output_path)
-
-
     
-
 # Function to fill in the degree details inside the table
 def fill_table_degree_details(template_path, output_path, degree_details):
     data = {
@@ -401,8 +386,6 @@ def fill_table_degree_details(template_path, output_path, degree_details):
 
     # Save the modified document
     doc.save(output_path)
-
-
 
 # Function to fill in the institute names inside the table
 def fill_table_institute_details(template_path, output_path, institute_details):
@@ -443,8 +426,6 @@ def fill_table_institute_details(template_path, output_path, institute_details):
     # Save the modified document
     doc.save(output_path)
 
-
-
 # Function to fill in the education years inside the table
 def fill_table_education_years(template_path, output_path, education_years):
     data = {
@@ -484,8 +465,6 @@ def fill_table_education_years(template_path, output_path, education_years):
     # Save the modified document
     doc.save(output_path)
 
-
-
 # Function to fill in the skill set inside the existing table
 def fill_table_skill_set(template_path, output_path, skill_set):
     data = {
@@ -501,8 +480,6 @@ def fill_table_skill_set(template_path, output_path, skill_set):
                     run.text = run.text.replace(key, value)
 
     doc.save(output_path)
-
-
 
 def get_work_experience_response(input_text):
     
@@ -530,8 +507,6 @@ Repeat this format for all projects. Please ensure the content is sourced from t
     query = input_prompt + experience_query
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,query])
     return response.text
-
-
 
 def get_work_experience_response2(input_text):
     experience_query = """
@@ -573,7 +548,6 @@ Repeat this format for all projects. Please ensure the content is sourced from t
     response = client.models.generate_content(model="gemini-2.0-flash", contents=[input_text,experience_query])
     return response.text
 
-
 # Function to replace placeholder with organization count in the Word document
 def remove_asterisks(text):
     lines = text.split('\n')
@@ -584,8 +558,6 @@ def remove_asterisks(text):
         cleaned_lines.append(line)
     cleaned_text = '\n'.join(cleaned_lines)
     return cleaned_text
-
-
 
 def replace_organization_count(template_path, output_path, organization_count):
     data = {
@@ -617,7 +589,6 @@ def replace_organization_count2(template_path, output_path, organization_count):
 
     doc.save(output_path)
 
-
 def bold_text_in_docx(file_path):
     def make_bold(text):
         if '?/' in text:
@@ -642,7 +613,6 @@ def bold_text_in_docx(file_path):
     for paragraph in doc.paragraphs:
         process_paragraph(paragraph)
     doc.save(file_path)
-
 
 def remove_characters_from_docx(file_path):
     def remove_special_characters(text):
@@ -695,11 +665,6 @@ def delete_rows_with_any_empty_cells(doc_path):
     # Save the modified document
     doc.save(doc_path)
 
-
-
-# -------------------------
-
-
 def pdf_to_image(pdf_path):
     # Split the PDF path into directory, base name, and extension
     base_name = os.path.splitext(os.path.basename(pdf_path))[0]
@@ -718,7 +683,6 @@ def pdf_to_image(pdf_path):
     image.save(output_path)
     return output_path
 
-
 def save_document(uploaded_file):
     if uploaded_file is not None:
         with open(uploaded_file.name, 'wb') as f:
@@ -727,14 +691,12 @@ def save_document(uploaded_file):
     else:
         st.warning("Please upload a document.")
 
-
 def delete_document(filename):
     if os.path.exists(filename):
         os.remove(filename)
         st.success(f"{filename} deleted successfully.")
     else:
         st.warning("File does not exist.")
-
 
 def extract_and_save_passport_photo(image_path):
     padding = 30
@@ -768,8 +730,6 @@ def extract_and_save_passport_photo(image_path):
         print("Passport photo extracted and saved successfully!")
     else:
         print("No face detected in the input image.")
-
-
 
 import os
 from docx import Document
@@ -810,9 +770,6 @@ def replace_placeholder_with_image(doc_path, image_path, image_width_inches=1.5)
     # Save the modified document
     doc.save(doc_path)
 
-
-
-
 def bold_text_between_markers11(paragraph, marker='?/'):
     """
     Make text between specified markers bold within a single paragraph.
@@ -849,7 +806,6 @@ def process_docx11(file_path):
         bold_text_between_markers11(paragraph)
     doc.save(file_path)  # Save the modified document
 
-
 def zip_folder(folder_path):
     # Create a temporary file to hold the zip
     temp_dir = tempfile.mkdtemp()
@@ -858,4 +814,3 @@ def zip_folder(folder_path):
     shutil.make_archive(base_name, 'zip', folder_path)
     # Return the path to the zipped file
     return base_name + '.zip'
-

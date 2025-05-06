@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import streamlit as st, os, tempfile
 from google import genai
-import pdfplumber
 import fitz  # PyMuPDF
 from io import BytesIO
 from docx import Document
@@ -25,11 +24,11 @@ from google.generativeai import GenerativeModel, configure
 from PIL import Image
 if api_key:
     client = genai.Client(api_key=api_key)
-else:
-    api_key = os.getenv('GEMINI_API_KEY')
 # else:
-#     st.warning("Please enter your Gemini API key to use the image processing feature.")
-#     client = None
+#     api_key = os.getenv('GEMINI_API_KEY')
+else:
+    st.warning("Please enter your Gemini API key to use the image processing feature.")
+    client = None
 
 
 def image_processing_genai(uploaded_file):
@@ -119,7 +118,6 @@ def process_resume(uploaded_files, filename):
     except FileNotFoundError as e:
         st.error(str(e))
 
-   
 def process_resume_2(uploaded_files, filename):
     try:
         if uploaded_files.type == "application/pdf":
@@ -160,7 +158,6 @@ def process_resume_2(uploaded_files, filename):
         
     except FileNotFoundError as e:
         st.error(str(e))
-        
         
 def process_resume_3(uploaded_files,filename):
     temp_pdf_path = None
