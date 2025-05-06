@@ -18,6 +18,8 @@ Companies often receive resumes in various formats—PDFs, DOCXs, and images—e
 
 This project was developed as part of the **Applied Machine Learning course** (by **Prof. Raghav Kulkarni**), with a focus on solving real-world HR documentation challenges using GenAI.
 
+---
+
 ## 🛠️ Features
 
 - ✅ Uploads PDF, DOCX, or image-based resumes
