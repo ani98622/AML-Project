@@ -4,264 +4,230 @@ from google import genai
 import fitz  # PyMuPDF
 from io import BytesIO
 from docx import Document
-import re,all_functions as func, shutil, time
+import re, all_functions as func, shutil, time
 from zipfile import ZipFile
+from PIL import Image
 from google.api_core.exceptions import InvalidArgument
 
-
+# Load environment variables
 load_dotenv()
 
 # Set page configuration
-st.set_page_config(page_title="Resume Standardization System")
-st.header("Resume Standardization System")
+st.set_page_config(page_title="Resume Standardization System", layout="centered")
+st.title("📄 Resume Standardization System")
 
+# Initialize session state for trial mode
+if "trial_uses" not in st.session_state:
+    st.session_state.trial_uses = 0
 
-# Streamlit input for API key
-api_key = st.text_input('Enter your Gemini API key', type="password")
+# Sidebar for API access selection
+st.sidebar.subheader("🔐 API Access")
+mode = st.sidebar.radio("Choose Access Mode:", ["Use My API Key", "Trial Mode (2 uses only)"])
 
-# Updated Gemini image processing
-from google.generativeai import GenerativeModel, configure
-from PIL import Image
-if api_key:
-    client = genai.Client(api_key=api_key)
-# else:
-#     api_key = os.getenv('GEMINI_API_KEY')
-else:
-    st.warning("Please enter your Gemini API key to use the image processing feature.")
-    client = None
+# API key management
+api_key = None
+client = None
 
+if mode == "Use My API Key":
+    api_key = st.sidebar.text_input("Enter your Gemini API key:", type="password")
+    if api_key:
+        client = genai.Client(api_key=api_key)
+    else:
+        st.warning("Please enter your API key to proceed.")
+elif mode == "Trial Mode (2 uses only)":
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        st.error("Trial API key not configured in environment.")
+    elif st.session_state.trial_uses >= 2:
+        st.error("Trial limit reached. Please use your own API key.")
+        api_key = None
+    else:
+        st.sidebar.success(f"Trial use {st.session_state.trial_uses + 1} of 2")
+        client = genai.Client(api_key=api_key)
 
+# Stop execution if no valid API key
+if not api_key:
+    st.stop()
+
+# ========== IMAGE RESUME PARSER ==========
 def image_processing_genai(uploaded_file):
     try:
-        image = Image.open(uploaded_file)  
-
-        # prompt = """You are a resume analyzer. Extract A to Z details from the resume image and format them as text. 
-        # Return a summary that includes personal info, skills, education, experience, certifications, and any relevant projects."""
-
+        image = Image.open(uploaded_file)
         response = client.models.generate_content(
-            model = "gemini-2.0-flash",
+            model="gemini-2.0-flash",
             contents=[image, """You are a resume analyzer. Extract A to Z details from the resume image and format them as text. 
-        Return a summary that includes personal info, skills, education, experience, certifications, and any relevant projects."""
-            ]
+            Return a summary that includes personal info, skills, education, experience, certifications, and any relevant projects."""]
         )
         return response.text if response and response.text else "No response received from Gemini."
-    
     except Exception as e:
         st.error(f"Error processing image with Gemini: {e}")
         return ""
-    
-# File upload function
+
+# ========== FILE UPLOAD ==========
 def file_upload():
-    uploaded_files = st.file_uploader("Upload your files...", type=["pdf", "docx", "jpg", "jpeg", "png"], accept_multiple_files=True)
-    if uploaded_files is not None:
-        return uploaded_files
-    else:
-        return None
+    uploaded_files = st.file_uploader("Upload your resumes (PDF, DOCX, JPG, PNG)...", 
+                                      type=["pdf", "docx", "jpg", "jpeg", "png"], 
+                                      accept_multiple_files=True)
+    return uploaded_files if uploaded_files else None
 
-# File processing function
-def process_resume(uploaded_files, filename):
+# ========== TEMPLATE PROCESSORS ==========
+def process_resume(uploaded_file, filename):
     try:
-        if uploaded_files.type == "application/pdf":
-            resume_text = func.extract_text_from_pdf(uploaded_files)
-        elif uploaded_files.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            resume_text = func.extract_text_from_docx(uploaded_files)
-        elif uploaded_files.type in ["image/jpeg", "image/png"]:
-            resume_text = image_processing_genai(uploaded_files)
-            
+        if uploaded_file.type == "application/pdf":
+            resume_text = func.extract_text_from_pdf(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            resume_text = func.extract_text_from_docx(uploaded_file)
+        elif uploaded_file.type in ["image/jpeg", "image/png"]:
+            resume_text = image_processing_genai(uploaded_file)
         else:
-            st.error("Unsupported file format. Please upload a PDF, DOCX, JPEG, or PNG file.")
+            st.error("Unsupported file format.")
             return
-        # Get name response
-        name = func.get_name_response(resume_text)
-        
-        education_overall1 = func.get_education_details_overall(resume_text)
-        # Get degree details response
-        degree_details = func.get_degree_details_response(education_overall1)
-        # Get education details response
-        education_details = func.get_education_details_response(education_overall1)
-        # Get education years in descending order response
-        education_years_descending = func.get_education_years_response(education_overall1)
 
-        
-        work_experience = func.get_work_experience_response(resume_text)
-        summary = func.get_summary_response(resume_text)     
-        # Get certifications response
+        name = func.get_name_response(resume_text)
+        education = func.get_education_details_overall(resume_text)
+        degree_details = func.get_degree_details_response(education)
+        education_details = func.get_education_details_response(education)
+        education_years = func.get_education_years_response(education)
+        summary = func.get_summary_response(resume_text)
         certifications = func.get_certifications_response(resume_text)
-        # Get technical skills response
-        technical_skills = func.get_technical_skills_response2(resume_text)
-        
-        # Fill in the Word document template for all sections
+        skills = func.get_technical_skills_response2(resume_text)
+        work_experience = func.get_work_experience_response(resume_text)
+
         template_path = 'Templates/agilisium_template.docx'
         output_path = f'agilisium_resume_internal_template/{filename}_resume.docx'
-        func.fill_invitation(template_path, output_path, name, summary, certifications)
 
-        # Fill in the degree details inside the table
+        func.fill_invitation(template_path, output_path, name, summary, certifications)
         func.fill_table_degree_details(output_path, output_path, degree_details)
-        # Fill in the institute details inside the table
         func.fill_table_institute_details(output_path, output_path, education_details)
-        # Fill in the education years inside the table
-        func.fill_table_education_years(output_path, output_path, education_years_descending)
-        # Fill in the skill set inside the existing table
-        func.fill_table_skill_set(output_path, output_path, technical_skills)
-        func.replace_organization_count(output_path, output_path,work_experience)
-        
+        func.fill_table_education_years(output_path, output_path, education_years)
+        func.fill_table_skill_set(output_path, output_path, skills)
+        func.replace_organization_count(output_path, output_path, work_experience)
+
         updated_doc = func.replace_hyphens_with_bullet_points(output_path)
         updated_doc.save(output_path)
         func.remove_characters_from_docx2(output_path)
         updated_doc1 = func.replace_symbol_with_dash(output_path)
         updated_doc1.save(output_path)
         time.sleep(2)
-        func.func.process_docx11(output_path)
+        func.process_docx11(output_path)
         func.delete_rows_with_any_empty_cells(output_path)
-        st.success(f"{filename}-document processed successfully.")
 
+        st.success(f"{filename} processed successfully.")
     except FileNotFoundError as e:
         st.error(str(e))
 
-def process_resume_2(uploaded_files, filename):
+def process_resume_2(uploaded_file, filename):
     try:
-        if uploaded_files.type == "application/pdf":
-            resume_text = func.extract_text_from_pdf(uploaded_files)
-        elif uploaded_files.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            resume_text = func.extract_text_from_docx(uploaded_files)
-        elif uploaded_files.type in ["image/jpeg", "image/png"]:
-            resume_text = image_processing_genai(uploaded_files)
+        if uploaded_file.type == "application/pdf":
+            resume_text = func.extract_text_from_pdf(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            resume_text = func.extract_text_from_docx(uploaded_file)
+        elif uploaded_file.type in ["image/jpeg", "image/png"]:
+            resume_text = image_processing_genai(uploaded_file)
         else:
-            st.error("Unsupported file format. Please upload a PDF, DOCX, JPEG, or PNG file.")
+            st.error("Unsupported file format.")
             return
 
-        
-        summary2 = func.get_summary_response(resume_text)
+        summary = func.get_summary_response(resume_text)
         project_experience = func.relevant_project_experience(resume_text)
-        skills1 = func.get_technical_skills_response2(resume_text)
-        certifications1 = func.get_certifications_response(resume_text)
-
+        skills = func.get_technical_skills_response2(resume_text)
+        certifications = func.get_certifications_response(resume_text)
         template_path = 'Templates/Client sample format.docx'
         output_path = f'agilisium_resume_client_format/{filename}_resume.docx'
-        summar = "DASdSDAas"
-        func.fill_invitation2(template_path, output_path,summary2,skills1,project_experience,certifications1,summar)
-        education_overall1 = func.get_education_details_overall(resume_text)
-        degree_details1 = func.get_degree_details_response(education_overall1)
-        education_details1 = func.get_education_details_response(education_overall1)
-        education_years_descending1 = func.get_education_years_response(education_overall1)
-        func.fill_table_degree_details(output_path, output_path, degree_details1)
-        func.fill_table_institute_details(output_path, output_path, education_details1)
-        func.fill_table_education_years(output_path, output_path, education_years_descending1)
+
+        func.fill_invitation2(template_path, output_path, summary, skills, project_experience, certifications, "Summary Placeholder")
+        education = func.get_education_details_overall(resume_text)
+        func.fill_table_degree_details(output_path, output_path, func.get_degree_details_response(education))
+        func.fill_table_institute_details(output_path, output_path, func.get_education_details_response(education))
+        func.fill_table_education_years(output_path, output_path, func.get_education_years_response(education))
+
         updated_doc = func.replace_hyphens_with_bullet_points(output_path)
         updated_doc.save(output_path)
-
         time.sleep(2)
         func.process_docx11(output_path)
         func.delete_rows_with_any_empty_cells(output_path)
         func.remove_characters_from_docx2(output_path)
-        st.success(f"{filename}-document processed successfully.")
-        
+
+        st.success(f"{filename} processed successfully.")
     except FileNotFoundError as e:
         st.error(str(e))
-        
-def process_resume_3(uploaded_files,filename):
-    temp_pdf_path = None
+
+def process_resume_3(uploaded_file, filename):
     try:
-        if uploaded_files.type == "application/pdf":
-            resume_text = func.extract_text_from_pdf(uploaded_files)
-        elif uploaded_files.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            resume_text = func.extract_text_from_docx(uploaded_files)
-        elif uploaded_files.type in ["image/jpeg", "image/png"]:
-            resume_text = image_processing_genai(uploaded_files)
+        if uploaded_file.type == "application/pdf":
+            resume_text = func.extract_text_from_pdf(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            resume_text = func.extract_text_from_docx(uploaded_file)
+        elif uploaded_file.type in ["image/jpeg", "image/png"]:
+            resume_text = image_processing_genai(uploaded_file)
         else:
-            st.error("Unsupported file format. Please upload a PDF, DOCX, JPEG, or PNG file.")
+            st.error("Unsupported file format.")
             return
-        
-        # Get name response
-        name1 = func.get_name_response(resume_text)
-        # Get summary response
-        summary3 = func.get_summary_response(resume_text)
-        # Get technical skills response
-        technical_skills3 = func.get_technical_skills_response2(resume_text)
-        
+
+        name = func.get_name_response(resume_text)
+        summary = func.get_summary_response(resume_text)
+        skills = func.get_technical_skills_response2(resume_text)
+        education = func.get_education_details_overall(resume_text)
         template_path = 'Templates/Client sample format-2.docx'
         output_path = f'agilisium_resume_client_format_2/{filename}_resume.docx'
-        func.fill_invitation3(template_path, output_path, name1, summary3)
-        func.fill_table_skill_set(output_path, output_path, technical_skills3)
-        education_overall1 = func.get_education_details_overall(resume_text)
-        degree_details1 = func.get_degree_details_response(education_overall1)
-        education_details1 = func.get_education_details_response(education_overall1)
-        education_years_descending1 = func.get_education_years_response(education_overall1)
-        
-        func.fill_table_degree_details(output_path, output_path, degree_details1)
-        func.fill_table_institute_details(output_path, output_path, education_details1)
-        func.fill_table_education_years(output_path, output_path, education_years_descending1)
-        
-        work_experience2 = func.get_work_experience_response2(resume_text)
-        func.replace_organization_count2(output_path, output_path,work_experience2)
-        
+
+        func.fill_invitation3(template_path, output_path, name, summary)
+        func.fill_table_skill_set(output_path, output_path, skills)
+        func.fill_table_degree_details(output_path, output_path, func.get_degree_details_response(education))
+        func.fill_table_institute_details(output_path, output_path, func.get_education_details_response(education))
+        func.fill_table_education_years(output_path, output_path, func.get_education_years_response(education))
+        func.replace_organization_count2(output_path, output_path, func.get_work_experience_response2(resume_text))
+
         updated_doc = func.replace_hyphens_with_bullet_points(output_path)
         updated_doc.save(output_path)
         func.remove_characters_from_docx2(output_path)
-        updated_doc1 = func.replace_symbol_with_dash(output_path)
-        updated_doc1.save(output_path)
+        func.replace_symbol_with_dash(output_path).save(output_path)
         time.sleep(2)
-        func.func.process_docx11(output_path)
+        func.process_docx11(output_path)
         func.delete_rows_with_any_empty_cells(output_path)
 
-        # Task from pdf to image
-        filename = func.save_document(uploaded_files)
+        filename = func.save_document(uploaded_file)
         filename = func.convert_to_pdf_if_docx(filename)
-        out_path1 = func.pdf_to_image(filename)
-        func.extract_and_save_passport_photo(out_path1)
-        image_path = 'passport_photo.png'
-        func.replace_placeholder_with_image(output_path,image_path)
+        out_path = func.pdf_to_image(filename)
+        func.extract_and_save_passport_photo(out_path)
+        func.replace_placeholder_with_image(output_path, 'passport_photo.png')
         func.remove_pdf_and_docx_files_in_script_directory()
-        
-        st.success(f"{filename}-document processed successfully.")
-        
-    except FileNotFoundError as e:
-        st.error(str(e))   
 
-# Function to process and save DOCX file
+        st.success(f"{filename} processed successfully.")
+    except FileNotFoundError as e:
+        st.error(str(e))
+
+# ========== GENERIC PROCESSOR ==========
 def process_and_save(uploaded_files, process_func, folder_path):
     if uploaded_files:
-        os.makedirs(folder_path, exist_ok=True)  # Create a folder to store the documents
-        for uploaded_file in uploaded_files:
-            filename = os.path.splitext(uploaded_file.name)[0]  # Remove the file extension
-            process_func(uploaded_file, filename)
-        # Once processing is done, zip and offer the folder for download
-        zipped_bytes_io = func.zip_folder_to_bytesio(folder_path)
-        st.download_button(
-            label="Download Zip Folder",
-            data=zipped_bytes_io,
-            file_name=f"{folder_path}.zip",
-            mime="application/zip"
-        )
+        if mode == "Trial Mode (2 uses only)":
+            st.session_state.trial_uses += 1
 
-# Button functions
-def internal_template_button(uploaded_files):
-    process_and_save(uploaded_files, process_resume, "agilisium_resume_internal_template")
+        os.makedirs(folder_path, exist_ok=True)
+        for file in uploaded_files:
+            filename = os.path.splitext(file.name)[0]
+            process_func(file, filename)
 
-def client_template_button(uploaded_files):
-    process_and_save(uploaded_files, process_resume_2, "agilisium_resume_client_format")
+        zipped = func.zip_folder_to_bytesio(folder_path)
+        st.download_button("📦 Download Processed ZIP", data=zipped, file_name=f"{folder_path}.zip", mime="application/zip")
 
-def client_template_with_photo_button(uploaded_files):
-    process_and_save(uploaded_files, process_resume_3, "agilisium_resume_client_format_2")
-    
-
-# File upload
-uploaded_files = file_upload()  # Implement file_upload to handle file upload
+# ========== MAIN INTERFACE ==========
 directories = ["agilisium_resume_internal_template", "agilisium_resume_client_format", "agilisium_resume_client_format_2"]
- # Implement func.delete_directories to clean up before starting
+func.delete_directories(directories)
+func.remove_pdf_and_docx_files_in_script_directory()
 
-st.sidebar.subheader("Choose Template:")
-if st.sidebar.button("Internal Template") and uploaded_files is not None:
-    func.delete_directories(directories)
-    func.remove_pdf_and_docx_files_in_script_directory()
-    internal_template_button(uploaded_files)
+with st.expander("📎 Upload Resumes"):
+    uploaded_files = file_upload()
 
-if st.sidebar.button("Client Template") and uploaded_files is not None:
-    func.delete_directories(directories) 
-    func.remove_pdf_and_docx_files_in_script_directory()
-    client_template_button(uploaded_files)
+st.sidebar.subheader("🧾 Choose Output Template")
+if st.sidebar.button("Internal Template") and uploaded_files:
+    internal_template_button = lambda: process_and_save(uploaded_files, process_resume, "agilisium_resume_internal_template")
+    internal_template_button()
 
-if st.sidebar.button("Client Template with Photo") and uploaded_files is not None:
-    func.delete_directories(directories)
-    func.remove_pdf_and_docx_files_in_script_directory()
-    client_template_with_photo_button(uploaded_files)
+if st.sidebar.button("Client Template") and uploaded_files:
+    client_template_button = lambda: process_and_save(uploaded_files, process_resume_2, "agilisium_resume_client_format")
+    client_template_button()
+
+if st.sidebar.button("Client Template with Photo") and uploaded_files:
+    client_template_photo_button = lambda: process_and_save(uploaded_files, process_resume_3, "agilisium_resume_client_format_2")
+    client_template_photo_button()
