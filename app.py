@@ -22,7 +22,7 @@ if "trial_uses" not in st.session_state:
 
 # Sidebar for API access selection
 st.sidebar.subheader("🔐 API Access")
-mode = st.sidebar.radio("Choose Access Mode:", ["Use My API Key", "Trial Mode (2 uses only)"])
+mode = st.sidebar.radio("Choose Access Mode:", ["Use My API Key", "Trial Mode (1 time only)"])
 
 # API key management
 api_key = None
@@ -34,15 +34,15 @@ if mode == "Use My API Key":
         client = genai.Client(api_key=api_key)
     else:
         st.warning("Please enter your API key to proceed.")
-elif mode == "Trial Mode (2 uses only)":
+elif mode == "Trial Mode (1 time only)":
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         st.error("Trial API key not configured in environment.")
-    elif st.session_state.trial_uses >= 2:
+    elif st.session_state.trial_uses >= 1:
         st.error("Trial limit reached. Please use your own API key.")
         api_key = None
     else:
-        st.sidebar.success(f"Trial use {st.session_state.trial_uses + 1} of 2")
+        st.sidebar.success(f"Trial use {st.session_state.trial_uses + 1} of 1")
         client = genai.Client(api_key=api_key)
 
 # Stop execution if no valid API key
@@ -197,10 +197,11 @@ def process_resume_3(uploaded_file, filename):
     except FileNotFoundError as e:
         st.error(str(e))
 
+
 # ========== GENERIC PROCESSOR ==========
 def process_and_save(uploaded_files, process_func, folder_path):
     if uploaded_files:
-        if mode == "Trial Mode (2 uses only)":
+        if mode == "Trial Mode (1 time only)":
             st.session_state.trial_uses += 1
 
         os.makedirs(folder_path, exist_ok=True)
@@ -221,13 +222,10 @@ with st.expander("📎 Upload Resumes"):
 
 st.sidebar.subheader("🧾 Choose Output Template")
 if st.sidebar.button("Internal Template") and uploaded_files:
-    internal_template_button = lambda: process_and_save(uploaded_files, process_resume, "agilisium_resume_internal_template")
-    internal_template_button()
+    process_and_save(uploaded_files, process_resume, "agilisium_resume_internal_template")
 
 if st.sidebar.button("Client Template") and uploaded_files:
-    client_template_button = lambda: process_and_save(uploaded_files, process_resume_2, "agilisium_resume_client_format")
-    client_template_button()
+    process_and_save(uploaded_files, process_resume_2, "agilisium_resume_client_format")
 
 if st.sidebar.button("Client Template with Photo") and uploaded_files:
-    client_template_photo_button = lambda: process_and_save(uploaded_files, process_resume_3, "agilisium_resume_client_format_2")
-    client_template_photo_button()
+    process_and_save(uploaded_files, process_resume_3, "agilisium_resume_client_format_2")
